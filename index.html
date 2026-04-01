@@ -363,6 +363,12 @@ function realStudents(){
   const removed=(state&&state.removedStudents)||[];
   return [...base,...extra].filter(s=>!removed.includes(s.name));
 }
+// 입출금·잔액 조회용 — 테스트 계정 포함 (랭킹/순찰/과제에서는 realStudents 사용)
+function allStudentsForCashier(){
+  const extra=(state&&state.extraStudents)||[];
+  const removed=(state&&state.removedStudents)||[];
+  return [...STUDENTS,...extra].filter(s=>!removed.includes(s.name));
+}
 const STOCKS=[
   {id:'semi',name:'DAIZE 반도체',sector:'반도체',badge:'bsemi',emoji:'💻',color:'#1e40af',bg:'#dbeafe'},
   {id:'food',name:'DAIZE 식품',  sector:'식품',  badge:'bfood',emoji:'🍱',color:'#166534',bg:'#dcfce7'},
@@ -3388,7 +3394,7 @@ function rCashier(el){
   h+=`<div class="card"><div class="ct">➕ 직접 입출금</div>
   <p class="tsm tg" style="margin-bottom:.65rem;">학생을 탭해서 선택하세요.</p>
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem;margin-bottom:.75rem;">
-    ${realStudents().map(s=>{
+    ${allStudentsForCashier().map(s=>{
       const bal=(state.students[s.name]?.bal||0);
       const isSel=selectedCashierStu===s.name;
       return `<div onclick="selectCashierStu('${s.name}')" id="cs-${s.name}"
@@ -3604,18 +3610,19 @@ function rTeacher(el){
   // ── 전체 학생 현황 (컴팩트 그리드)
   h+=sec('students','👥','전체 학생 현황',`
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;margin-bottom:.4rem;">
-      ${realStudents().map(s=>{
+      ${allStudentsForCashier().map(s=>{
         if(!state.students||!state.students[s.name]) return'';
+        const isTest=TEST_ACCOUNTS.includes(s.name);
         const p=calcP(s.name),isP=p.tpnl>=0,hasPw=(state.passwords||{})[s.name]?'🔐':'🔓';
-        return`<div onclick="showStudentDetail('${s.name}')" style="background:var(--g50);border-radius:8px;padding:.45rem .5rem;text-align:center;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='var(--pl)'" onmouseout="this.style.background='var(--g50)'">
+        return`<div onclick="showStudentDetail('${s.name}')" style="background:${isTest?'var(--wl)':'var(--g50)'};border-radius:8px;padding:.45rem .5rem;text-align:center;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='var(--pl)'" onmouseout="this.style.background='${isTest?'var(--wl)':'var(--g50)'}'">
           <div style="font-size:1.1rem;">${stuEmoji(s.name)}</div>
-          <div style="font-size:.72rem;font-weight:600;">${s.name} ${hasPw}</div>
+          <div style="font-size:.72rem;font-weight:600;">${s.name} ${hasPw}${isTest?' 🧪':''}</div>
           <div style="font-size:.65rem;color:var(--g500);">${fE(p.total)}</div>
           ${p.inv>0?`<div style="font-size:.62rem;color:${isP?'var(--suc)':'var(--dan)'};">${isP?'+':''}${p.tpct.toFixed(1)}%</div>`:''}
         </div>`;
       }).join('')}
     </div>
-    <div class="txs tg">테스트: ${TEST_ACCOUNTS.join(', ')} 제외됨</div>
+    <div class="txs tg">🧪 테스트 계정(${TEST_ACCOUNTS.join(', ')})은 랭킹·순찰·과제에서 제외됩니다.</div>
   `);
 
   // ── 시장/뉴스 설정
@@ -3824,7 +3831,7 @@ function rTeacher(el){
     <div style="display:flex;gap:.35rem;flex-wrap:wrap;">
       <select id="couponTarget" style="flex:2;padding:.4rem .5rem;border:1px solid var(--g200);border-radius:8px;font-size:.8rem;font-family:inherit;">
         <option value="all">전체 학생</option>
-        ${realStudents().map(s=>`<option value="${s.name}">${s.no}번 ${s.name}</option>`).join('')}
+        ${allStudentsForCashier().map(s=>`<option value="${s.name}">${s.no}번 ${s.name}${TEST_ACCOUNTS.includes(s.name)?' 🧪':''}</option>`).join('')}
       </select>
       <input type="number" id="couponQty" min="1" max="10" value="1" placeholder="장수" style="flex:1;padding:.4rem .5rem;border:1px solid var(--g200);border-radius:8px;font-size:.8rem;font-family:inherit;"/>
       <button class="btn bsuc bsm" onclick="grantEmojiCoupon()">🎟️ 지급</button>
@@ -5096,7 +5103,7 @@ function reResetAll(){
       if(!state.realestate) state.realestate={plots:{},listings:{}};
       state.realestate.plots={};
       state.realestate.listings={};
-      await update(ref(db,ROOT+'/realestate'),{plots:{},listings:{}}).catch(()=>{});
+      await update(ref(db,ROOT+'/realestate'),{plots:null,listings:null}).catch(()=>{});
       closeModal(); showToast('🏘️ 부동산 초기화 완료!');
       switchTab('realestate');
     }},{l:'취소',c:'bs',f:closeModal}
